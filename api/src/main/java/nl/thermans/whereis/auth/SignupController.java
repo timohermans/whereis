@@ -24,10 +24,6 @@ public class SignupController {
 
     @PostMapping("/auth/signup")
     public ResponseEntity<?> handle(@Valid @RequestBody SignupDto form) {
-        if (accountRepository.existsByEmail(form.email())) {
-            return new ResponseEntity<>("User already exists!", HttpStatus.BAD_REQUEST);
-        }
-
         Account account = new Account(
                 form.email(),
                 form.password(),

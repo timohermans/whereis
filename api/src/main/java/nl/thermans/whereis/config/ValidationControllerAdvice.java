@@ -3,8 +3,7 @@ package nl.thermans.whereis.config;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.context.MessageSource;
 import org.springframework.context.NoSuchMessageException;
-import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -17,6 +16,8 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 @RestControllerAdvice
@@ -27,6 +28,30 @@ public class ValidationControllerAdvice extends ResponseEntityExceptionHandler {
     public ValidationControllerAdvice(MessageSource messageSource) {
         this.messageSource = messageSource;
         locale = Locale.ENGLISH;
+    }
+
+    // Okay so I know I should not let the database throw an exception
+    // but hey, we all need our time.
+    // if this becomes a bottleneck I'll fix it by then
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<?> handleDatabaseError(DataIntegrityViolationException ex, WebRequest request) throws Exception {
+        if (ex.getCause() instanceof org.hibernate.exception.ConstraintViolationException constraintException) {
+            var exceptionMessage = constraintException.getMessage();
+            Pattern pattern = Pattern.compile("insert into\\s*(\\w+)");
+            Matcher matcher = pattern.matcher(exceptionMessage);
+
+            if (exceptionMessage.contains("duplicate key") && matcher.find()) {
+                var entity = matcher.group(1);
+                var className = entity.substring(0, 1).toUpperCase() + entity.substring(1);
+                var message = tryGetMessageFrom(className + ".Unique");
+                return new ResponseEntity<>(new ValidationErrorEntityResponse(List.of(new ValidationError(entity, message))), HttpStatus.BAD_REQUEST);
+            }
+
+            return super.handleException(ex, request);
+        }
+
+
+        return super.handleException(ex, request);
     }
 
     @ExceptionHandler(TransactionSystemException.class)
