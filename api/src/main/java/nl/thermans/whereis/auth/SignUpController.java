@@ -5,28 +5,28 @@ import nl.thermans.whereis.user.Account;
 import nl.thermans.whereis.user.AccountRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-//@Validated
 @RestController
-public class SignupController {
+public class SignUpController {
 
-    private final AuthenticationManager authenticationManager;
     private final AccountRepository accountRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public SignupController(AuthenticationManager authenticationManager, AccountRepository accountRepository) {
-        this.authenticationManager = authenticationManager;
+    public SignUpController(AccountRepository accountRepository, PasswordEncoder passwordEncoder) {
         this.accountRepository = accountRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
-    @PostMapping("/auth/signup")
-    public ResponseEntity<?> handle(@Valid @RequestBody SignupDto form) {
+    @PostMapping("/api/auth/sign-up")
+    public ResponseEntity<?> handle(@Valid @RequestBody SignUpDto form) {
+        String encodedPassword = passwordEncoder.encode(form.password());
         Account account = new Account(
                 form.email(),
-                form.password(),
+                encodedPassword,
                 form.username(),
                 form.firstname(),
                 form.lastname()
