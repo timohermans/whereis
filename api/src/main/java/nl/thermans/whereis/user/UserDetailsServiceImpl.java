@@ -1,5 +1,6 @@
 package nl.thermans.whereis.user;
 
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -7,6 +8,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Optional;
 
 public class UserDetailsServiceImpl implements UserDetailsService {
 
@@ -17,12 +19,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Account account = _repository.findByUsername(username);
-        if(account == null) {
-            throw new UsernameNotFoundException("Tried username: " + username);
-        }
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        Optional<Account> account = _repository.findByEmail(email);
 
-        return new org.springframework.security.core.userdetails.User(account.getUsername(), account.getPassword(), Collections.emptyList());
+        return account.map(a -> new User(a.getEmail(), a.getPassword(), Collections.emptyList()))
+                .orElseThrow(() -> new UsernameNotFoundException("Tried username: " + email));
     }
 }
