@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,8 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.ArrayList;
 import java.util.Date;
 
-import static nl.thermans.whereis.auth.AuthConstants.EXPIRATION_TIME;
-import static nl.thermans.whereis.auth.AuthConstants.SECRET;
+import static nl.thermans.whereis.auth.AuthConstants.*;
 
 @RestController
 public class SignInController {
@@ -29,21 +30,27 @@ public class SignInController {
     public ResponseEntity<?> signIn(@Valid @RequestBody SignInDto dto) {
         // TODO: Nadenken over refreshtokens
 
-        // TODO: BadCredentialsException
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+
+        var user = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
                 dto.email(),
                 dto.password(),
                 new ArrayList<>()
         ));
 
-        // TODO: Role claim vullen
+        String[] roles = user.getAuthorities().stream().map(GrantedAuthority::getAuthority).toArray(String[]::new);
         String token = JWT.create()
                 .withIssuer("Timo")
                 .withSubject(dto.email())
                 .withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .withArrayClaim("roles", roles)
                 .sign(Algorithm.HMAC512(SECRET.getBytes()));
 
-        // TODO: fatsoenlijk response object maken
-        return new ResponseEntity<>(token, HttpStatus.OK);
+        User principal = (User) user.getPrincipal();
+        return new ResponseEntity<>(new SignInResponseDto(
+                token,
+                principal.getUsername(),
+                roles,
+                TOKEN_PREFIX
+        ), HttpStatus.OK);
     }
 }

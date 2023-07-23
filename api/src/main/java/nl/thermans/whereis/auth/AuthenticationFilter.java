@@ -48,11 +48,12 @@ public class AuthenticationFilter extends BasicAuthenticationFilter {
     }
 
 
-    private UsernamePasswordAuthenticationToken getAuthentication(String token) {
+    private UsernamePasswordAuthenticationToken getAuthentication(String tokenWithPrefix) {
         // TODO: nadenken over token expiry enzo. Dus exceptions afvangen
+        String token = tokenWithPrefix.replace(TOKEN_PREFIX, "");
         String userJson = JWT.require(Algorithm.HMAC512(SECRET.getBytes()))
                 .build()
-                .verify(token.replace(TOKEN_PREFIX, ""))
+                .verify(token)
                 .getSubject();
 
         if (userJson == null) {
@@ -60,12 +61,8 @@ public class AuthenticationFilter extends BasicAuthenticationFilter {
         }
 
         Optional<Account> account = accountRepository.findByEmail(userJson);
-
-        // TODO: Nog een keer de roles vullen. Hier moet ik de JSON voor deserializen.
-        // Misschien eerst auth testen om te kijken of dat wel nodig is.
-        List<GrantedAuthority> authorities = new ArrayList<>();
-        return new UsernamePasswordAuthenticationToken(
-                account.orElseThrow(), null, authorities);
+        return account.map(a -> new UsernamePasswordAuthenticationToken(a, null, a.getAuthorities()))
+                .orElseThrow();
     }
 
 }
