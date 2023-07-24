@@ -35,7 +35,7 @@ public class Account {
     @Pattern(regexp = "^[a-zA-Z .'-]+$")
     private String lastname;
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     private Set<Role> roles = new HashSet<>();
 
     public Account(@NotNull String email, @NotNull String password, @NotNull String username, @NotNull String firstname, @NotNull String lastname, @NotNull Role role) {
