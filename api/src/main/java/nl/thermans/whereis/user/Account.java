@@ -1,5 +1,7 @@
 package nl.thermans.whereis.user;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
@@ -7,14 +9,19 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static nl.thermans.whereis.auth.AuthConstants.EXPIRATION_TIME;
+import static nl.thermans.whereis.auth.AuthConstants.SECRET;
+
 @Entity
-public class Account {
+public class Account implements UserDetails {
     @Id
     @GeneratedValue
     private Long id;
@@ -63,6 +70,7 @@ public class Account {
         return password;
     }
 
+
     public Set<Role> getRoles() {
         return roles;
     }
@@ -71,5 +79,45 @@ public class Account {
         return getRoles().stream()
                 .map(role -> new SimpleGrantedAuthority(role.getName().name()))
                 .collect(Collectors.toList());
+    }
+
+    public String toToken() {
+        String[] roles = getAuthorities().stream().map(GrantedAuthority::getAuthority).toArray(String[]::new);
+        return JWT.create()
+                .withIssuer("Timo")
+                .withSubject(getEmail())
+                .withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .withArrayClaim("roles", roles)
+                .sign(Algorithm.HMAC512(SECRET.getBytes()));
+    }
+
+    // UserDetails overrides
+    @Override
+    public String getUsername() {
+        return email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+
+    public Long getId() {
+        return id;
     }
 }

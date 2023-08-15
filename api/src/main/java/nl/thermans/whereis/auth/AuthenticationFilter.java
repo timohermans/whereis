@@ -50,17 +50,15 @@ public class AuthenticationFilter extends BasicAuthenticationFilter {
 
     private UsernamePasswordAuthenticationToken getAuthentication(String tokenWithPrefix) {
         // TODO: nadenken over token expiry enzo. Dus exceptions afvangen
-        String token = tokenWithPrefix.replace(TOKEN_PREFIX, "");
-        String userJson = JWT.require(Algorithm.HMAC512(SECRET.getBytes()))
-                .build()
-                .verify(token)
-                .getSubject();
+        String tokenString = tokenWithPrefix.replace(TOKEN_PREFIX, "");
+        Token token = new Token(tokenString);
+        String email = token.getEmail();
 
-        if (userJson == null) {
+        if (email == null) {
             return null;
         }
 
-        Optional<Account> account = accountRepository.findByEmail(userJson);
+        Optional<Account> account = accountRepository.findByEmail(email);
         return account.map(a -> new UsernamePasswordAuthenticationToken(a, null, a.getAuthorities()))
                 .orElseThrow();
     }

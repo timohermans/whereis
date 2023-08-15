@@ -3,10 +3,15 @@ package nl.thermans.whereis.auth;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import jakarta.validation.Valid;
+import nl.thermans.whereis.user.Account;
+import nl.thermans.whereis.user.RefreshToken;
+import nl.thermans.whereis.user.RefreshTokenRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,40 +20,53 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Optional;
 
 import static nl.thermans.whereis.auth.AuthConstants.*;
 
 @RestController
 public class SignInController {
-    private final AuthenticationManager authenticationManager;
+    @Value("${nl.hermans.whereis.jwtRefreshExpirationMs}")
+    private Long refreshTokenDurationMs;
 
-    public SignInController(AuthenticationManager authenticationManager) {
+    private final AuthenticationManager authenticationManager;
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    public SignInController(AuthenticationManager authenticationManager, RefreshTokenRepository refreshTokenRepository) {
         this.authenticationManager = authenticationManager;
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     @PostMapping("/api/auth/sign-in")
-    public ResponseEntity<?> signIn(@Valid @RequestBody SignInDto dto) {
-        // TODO: Nadenken over refreshtokens
-
-
-        var user = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+    public ResponseEntity<?> signIn(@Valid @RequestBody SignInRequest dto) {
+        Authentication user = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
                 dto.email(),
                 dto.password(),
                 new ArrayList<>()
         ));
+        Account account = (Account) user.getPrincipal();
 
-        String[] roles = user.getAuthorities().stream().map(GrantedAuthority::getAuthority).toArray(String[]::new);
-        String token = JWT.create()
-                .withIssuer("Timo")
-                .withSubject(dto.email())
-                .withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .withArrayClaim("roles", roles)
-                .sign(Algorithm.HMAC512(SECRET.getBytes()));
+        String[] roles = account.getAuthorities().stream().map(GrantedAuthority::getAuthority).toArray(String[]::new);
+        String token = account.toToken();
 
-        User principal = (User) user.getPrincipal();
-        return new ResponseEntity<>(new SignInResponseDto(
+        RefreshToken refreshToken = refreshTokenRepository.findByUserId(account.getId())
+                .map(t -> {
+                    if (t.isExpired()) {
+                        refreshTokenRepository.delete(t);
+                        return null;
+                    }
+                    return t;
+                })
+                .orElseGet(() -> {
+                    var refreshNew = new RefreshToken(account, refreshTokenDurationMs);
+                    refreshNew = refreshTokenRepository.save(refreshNew);
+                    return refreshNew;
+                });
+
+        return new ResponseEntity<>(new SignInResponse(
                 token,
-                principal.getUsername(),
+                refreshToken.getToken(),
+                account.getEmail(),
                 roles,
                 TOKEN_PREFIX
         ), HttpStatus.OK);
