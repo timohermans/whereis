@@ -1,6 +1,5 @@
 import { ChangeEvent, FormEvent, useState } from "react";
-import { useDebounceCallback, useLocalStorage } from "../lib/hooks";
-import { User } from "../lib/types";
+import { useDebounceCallback } from "../lib/hooks";
 import { router } from "../lib/router";
 
 interface SignUp {
@@ -20,7 +19,6 @@ export default function Register() {
     password: "",
   });
   const [message, setMessage] = useState("");
-  const [, setUser] = useLocalStorage<User>("user", null);
   const [hasPasswordCheckFailed, setHasPasswordCheckFailed] = useState(false);
 
   async function handleSumbit(event: FormEvent) {
