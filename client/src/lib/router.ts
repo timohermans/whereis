@@ -23,13 +23,42 @@ async function enforceNotAuthenticated() {
 async function enforceAuthenticated() {
   const user = getUser();
   if (!user) {
-    throw redirect({
-      to: "/log-in",
-      search: {
-        redirect: router.state.location.href, // to force redirect on login again
+    returnToLogin();
+  } else {
+    // let's just ensure the token is always refreshed when we have a valid refresh token. If this fails
+    const refreshResponse = await fetch(
+      "http://localhost:8080/api/auth/refreshtoken",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          refreshToken: user.refreshToken,
+        }),
       },
-    });
+    );
+
+    if (refreshResponse.status !== 200) {
+      localStorage.removeItem(userKey);
+      returnToLogin();
+    } else {
+      const { token, refreshToken } = await refreshResponse.json();
+
+      user.token = token;
+      user.refreshToken = refreshToken;
+      localStorage.setItem(userKey, JSON.stringify(user));
+    }
   }
+}
+
+function returnToLogin() {
+  throw redirect({
+    to: "/log-in",
+    search: {
+      redirect: router.state.location.href, // to force redirect on login again
+    },
+  });
 }
 
 function getUser(): User | null {
