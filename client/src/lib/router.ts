@@ -38,7 +38,7 @@ function getUser(): User | null {
 
   const user = JSON.parse(userJson) as User;
 
-  if (!user.refreshToken) return null;
+  if (!user || !user.refreshToken) return null;
   return user;
 }
 
@@ -56,7 +56,7 @@ const indexRoute = new Route({
 
 // /log-in
 const logInSearchSchema = z.object({
-  redirect: z.string().catch(""),
+  redirect: z.string().optional(),
 });
 export const loginRoute = new Route({
   getParentRoute: () => rootRoute,

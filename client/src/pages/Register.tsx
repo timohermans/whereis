@@ -39,7 +39,7 @@ export default function Register() {
       if (response.status !== 201) {
         setMessage("Something unexpected went wrong. Oh noes 😱");
       } else {
-        router.navigate({ to: "/log-in", search: { redirect: "" } });
+        router.navigate({ to: "/log-in" });
       }
     } catch (error) {
       setMessage(
