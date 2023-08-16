@@ -59,3 +59,28 @@ export function useLocalStorage<T>(
 
   return [value, updateValue];
 }
+
+// all these disables are intentional, because I want to reuse this for a lot
+export function useDebounceCallback(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  functionToCall: (...args: any[]) => any,
+  debounceMs: number = 500,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): [(...args: any[]) => void, () => void] {
+  const [timeoutId, setTimeoutId] = useState<number | null>(null);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function doDebounce(...args: any[]) {
+    tryCancel();
+    const newTimeoutId = setTimeout(() => {
+      functionToCall(...args);
+    }, debounceMs);
+    setTimeoutId(newTimeoutId);
+  }
+
+  function tryCancel() {
+    if (timeoutId != null) clearTimeout(timeoutId);
+  }
+
+  return [doDebounce, tryCancel];
+}
