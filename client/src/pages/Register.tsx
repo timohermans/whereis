@@ -10,6 +10,10 @@ interface SignUp {
   lastname: string;
 }
 
+interface SignUpError {
+  errors: { property: string; message: string }[];
+}
+
 export default function Register() {
   const [form, setForm] = useState<SignUp>({
     email: "",
@@ -33,8 +37,17 @@ export default function Register() {
         body: JSON.stringify(form),
       });
 
-      // TODO: test existing email
-      if (response.status !== 201) {
+      if (response.status === 400) {
+        const body: SignUpError = await response.json();
+        if (
+          body.errors &&
+          body.errors.some((e) => e.message.includes("already taken"))
+        ) {
+          setMessage("The email is already taken 😟... Did you already sign up?");
+        } else {
+          setMessage("Signing up went wrong. Not sure why though 🤔.");
+        }
+      } else if (response.status !== 201) {
         setMessage("Something unexpected went wrong. Oh noes 😱");
       } else {
         router.navigate({ to: "/log-in" });
@@ -72,7 +85,7 @@ export default function Register() {
       <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-sm">
           <h2 className="mt-10 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900">
-            Sign in to your account
+            Let's create a new account 🥳
           </h2>
         </div>
 
